@@ -14,7 +14,7 @@ softdepend:
 commands:
   mossboss:
     description: MossBoss yönetim komutu.
-    usage: /<command> <reload|status|forcespawn <id>>
+    usage: /<command> <reload|status|forcespawn <id>|give [oyuncu]>
     aliases:
       - mb
     permission: mossboss.admin

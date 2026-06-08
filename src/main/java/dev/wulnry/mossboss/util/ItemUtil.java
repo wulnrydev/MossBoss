@@ -1,6 +1,9 @@
 package dev.wulnry.mossboss.util;
 
 import dev.wulnry.mossboss.config.ConfigManager;
+import dev.wulnry.mossboss.util.ColorUtil;
+import net.kyori.adventure.text.Component;
+import java.util.List;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -74,6 +77,35 @@ public final class ItemUtil {
         }
 
         return true;
+    }
+
+    /**
+     * Config'e göre PDC, material ve custom model data içeren hazır Tılsım eşyası oluşturur.
+     *
+     * @param config yapılandırma
+     * @return oluşturulan ItemStack
+     */
+    public static ItemStack createTilsim(ConfigManager config) {
+        ItemStack item = new ItemStack(config.getTilsimMaterial());
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        meta.displayName(ColorUtil.component(config.getTilsimDisplayName()));
+
+        List<String> loreLines = config.getTilsimLore();
+        if (!loreLines.isEmpty()) {
+            meta.lore(loreLines.stream().map(ColorUtil::component).toList());
+        }
+
+        meta.getPersistentDataContainer().set(tilsimKey, PersistentDataType.STRING, config.getTilsimPdcValue());
+
+        int cmd = config.getTilsimCustomModelData();
+        if (cmd != -1) {
+            meta.setCustomModelData(cmd);
+        }
+
+        item.setItemMeta(meta);
+        return item;
     }
 
     /**

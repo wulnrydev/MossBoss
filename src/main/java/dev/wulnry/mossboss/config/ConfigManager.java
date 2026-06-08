@@ -6,6 +6,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,6 +29,8 @@ public final class ConfigManager {
     private String unknownBossMessage;
 
     private Material tilsimMaterial;
+    private String tilsimDisplayName;
+    private List<String> tilsimLore;
     private int tilsimCustomModelData;
     private String tilsimPdcValue;
 
@@ -58,6 +61,8 @@ public final class ConfigManager {
         // Tılsım eşya ayarları
         String matName = config.getString("tilsim.material", "NETHER_STAR").toUpperCase();
         tilsimMaterial = parseMaterial(matName);
+        tilsimDisplayName  = config.getString("tilsim.display-name", "&#ffd500&lTılsım");
+        tilsimLore         = Collections.unmodifiableList(config.getStringList("tilsim.lore"));
         tilsimCustomModelData = config.getInt("tilsim.custom-model-data", -1);
         tilsimPdcValue = config.getString("tilsim.pdc-value", "mossboss_tilsim");
 
@@ -132,6 +137,8 @@ public final class ConfigManager {
     public String getUsageMessage()          { return usageMessage; }
     public String getUnknownBossMessage()    { return unknownBossMessage; }
     public Material getTilsimMaterial()      { return tilsimMaterial; }
+    public String getTilsimDisplayName()     { return tilsimDisplayName; }
+    public List<String> getTilsimLore()      { return tilsimLore; }
     public int getTilsimCustomModelData()    { return tilsimCustomModelData; }
     public String getTilsimPdcValue()        { return tilsimPdcValue; }
     public Map<String, BossEntry> getBosses(){ return bosses; }

@@ -3,11 +3,14 @@ package dev.wulnry.mossboss.command;
 import dev.wulnry.mossboss.MossBoss;
 import dev.wulnry.mossboss.manager.BossManager;
 import dev.wulnry.mossboss.util.ColorUtil;
+import dev.wulnry.mossboss.util.ItemUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +53,7 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
                     handleForcespawn(sender, args[1]);
                 }
             }
+            case "give" -> handleGive(sender, args);
             default -> sendUsage(sender);
         }
 
@@ -97,6 +101,40 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleGive(CommandSender sender, String[] args) {
+        Player target;
+        if (args.length < 2) {
+            if (!(sender instanceof Player p)) {
+                sender.sendMessage(ColorUtil.component(
+                        plugin.getConfigManager().getPrefix() +
+                        "&cKonsoldan kullanım: /mb give <oyuncu>"));
+                return;
+            }
+            target = p;
+        } else {
+            target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage(ColorUtil.component(
+                        plugin.getConfigManager().getPrefix() +
+                        "&c" + args[1] + " &7adlı oyuncu çevrimiçi değil."));
+                return;
+            }
+        }
+
+        ItemStack tilsim = ItemUtil.createTilsim(plugin.getConfigManager());
+        target.getInventory().addItem(tilsim).forEach((slot, overflow) ->
+                target.getWorld().dropItemNaturally(target.getLocation(), overflow));
+
+        sender.sendMessage(ColorUtil.component(
+                plugin.getConfigManager().getPrefix() +
+                "&#00D420Tılsım &7verildi: &#ffd500" + target.getName()));
+        if (!target.equals(sender)) {
+            target.sendMessage(ColorUtil.component(
+                    plugin.getConfigManager().getPrefix() +
+                    "&#ffd500Tılsım &7aldınız."));
+        }
+    }
+
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(ColorUtil.component(
                 replacePrefixPlaceholder(plugin.getConfigManager().getUsageMessage())));
@@ -113,13 +151,22 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return filterStartsWith(List.of("reload", "status", "forcespawn"), args[0]);
+            return filterStartsWith(List.of("reload", "status", "forcespawn", "give"), args[0]);
         }
 
-        if (args.length == 2 && args[0].equalsIgnoreCase("forcespawn")) {
-            return filterStartsWith(
-                    new ArrayList<>(plugin.getConfigManager().getBosses().keySet()),
-                    args[1]);
+        if (args.length == 2) {
+            if (args[0].equalsIgnoreCase("forcespawn")) {
+                return filterStartsWith(
+                        new ArrayList<>(plugin.getConfigManager().getBosses().keySet()),
+                        args[1]);
+            }
+            if (args[0].equalsIgnoreCase("give")) {
+                return filterStartsWith(
+                        Bukkit.getOnlinePlayers().stream()
+                                .map(Player::getName)
+                                .toList(),
+                        args[1]);
+            }
         }
 
         return List.of();

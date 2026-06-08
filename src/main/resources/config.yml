@@ -13,6 +13,12 @@ prefix: "&#15FF08&lʙᴏxᴘᴠᴘ &8▸ "
 tilsim:
   # Bukkit Material adı (BÜYÜK HARF)
   material: NETHER_STAR
+  # /mb give ile verildiğinde eşyada görünecek isim (&/&#RRGGBB renk kodları desteklenir)
+  display-name: "&#ffd500&lTılsım"
+  # Eşya açıklaması — her satır ayrı bir liste elemanı (boş bırakılabilir)
+  lore:
+    - "&7Bir boss'u uyandırmak için"
+    - "&7placeholder'a sağ tıklayın."
   # ResourcePack custom model data değeri (-1 = devre dışı)
   custom-model-data: 1001
   # PDC anahtar değeri — eşyada bu değer olmalıdır
@@ -34,7 +40,7 @@ messages:
   reload-success: "%prefix%&#00D420Yᴀᴘɪʟᴀɴᴅɪʀᴍᴀ ʙᴀsᴀʀɪʏʟᴀ ʏᴇɴɪᴅᴇɴ ʏüᴋʟᴇɴᴅɪ."
 
   # Geçersiz komut kullanımında gönderilen mesaj.
-  usage: "%prefix%&7ᴋᴜʟʟᴀɴɪᴍ&8: &#ffd500/mb <reload|status|forcespawn <id>>"
+  usage: "%prefix%&7ᴋᴜʟʟᴀɴɪᴍ&8: &#ffd500/mb <reload|status|forcespawn <id>|give [oyuncu]>"
 
   # Geçersiz boss ID'si girildiğinde.
   unknown-boss: "%prefix%&7&#ffd500%id% &7ɪᴅ'ʟɪ ʙᴏss ʙᴜʟᴜɴᴀᴍᴀᴅɪ."
