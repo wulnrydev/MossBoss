@@ -3,6 +3,7 @@ package dev.wulnry.mossboss;
 import dev.wulnry.mossboss.command.MossBossCommand;
 import dev.wulnry.mossboss.config.ConfigManager;
 import dev.wulnry.mossboss.hook.ModelEngineHook;
+import dev.wulnry.mossboss.listener.BossActiveListener;
 import dev.wulnry.mossboss.listener.BossDeathListener;
 import dev.wulnry.mossboss.listener.BossInteractListener;
 import dev.wulnry.mossboss.manager.BossManager;
@@ -50,6 +51,7 @@ public final class MossBoss extends JavaPlugin {
         // 6) Olay dinleyicilerini kaydet
         getServer().getPluginManager().registerEvents(new BossInteractListener(bossManager), this);
         getServer().getPluginManager().registerEvents(new BossDeathListener(bossManager), this);
+        getServer().getPluginManager().registerEvents(new BossActiveListener(bossManager), this);
 
         // 7) Komutu bağla
         PluginCommand cmd = getCommand("mossboss");

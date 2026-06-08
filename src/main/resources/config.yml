@@ -66,6 +66,27 @@ bosses:
     spawn-broadcast: ""
     # ModelEngine model adı (boş = ModelEngine kullanılmaz)
     model-id: ""
+    # Bossbar — boss doğduğunda tüm oyunculara gösterilir; boş bırakılırsa gösterilmez
+    # Yer tutucular: {health}, {max_health}
+    bossbar-title: "&#ffd500Ancient Golem &8| &c{health} &8/ &7{max_health} ❤"
+    # Renk: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
+    bossbar-color: "YELLOW"
+    # Stil: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
+    bossbar-style: "PROGRESS"
+    # Otomatik despawn — boss bu süre (saniye) içinde öldürülmezse yok olur (-1 = sınırsız)
+    despawn-after-seconds: 900
+    # Ödüller — en çok hasar veren oyunculara sırasıyla verilir
+    # {player} yer tutucusu oyuncu adıyla değiştirilir
+    rewards:
+      - rank: 1
+        commands:
+          - "crates key give {player} kit 1"
+      - rank: 2
+        commands:
+          - "crates key give {player} coin 1"
+      - rank: 3
+        commands:
+          - "crates key give {player} event 1"
 
   - id: "void_titan"
     world: "world"
@@ -78,3 +99,17 @@ bosses:
     respawn-delay-seconds: 7200
     spawn-broadcast: "%prefix%&#00D420ᴠᴏɪᴅ ᴛɪᴛᴀɴ &7ᴜʏᴀɴᴅɪ! &#ffd500%player% &7ᴜʏᴀɴᴅɪʀᴅɪ!"
     model-id: ""
+    bossbar-title: "&#9b59b6Void Titan &8| &c{health} &8/ &7{max_health} ❤"
+    bossbar-color: "PURPLE"
+    bossbar-style: "PROGRESS"
+    despawn-after-seconds: 900
+    rewards:
+      - rank: 1
+        commands:
+          - "crates key give {player} kit 1"
+      - rank: 2
+        commands:
+          - "crates key give {player} coin 1"
+      - rank: 3
+        commands:
+          - "crates key give {player} event 1"

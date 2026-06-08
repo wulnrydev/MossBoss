@@ -4,6 +4,7 @@ import dev.wulnry.mossboss.MossBoss;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -102,7 +103,34 @@ public final class ConfigManager {
             return null;
         }
 
-        return new BossEntry(id, world, x, y, z, yaw, phId, realId, delay, broadcast, modelId);
+        String bossBarTitle = getString(map, "bossbar-title", "");
+        String bossBarColor = getString(map, "bossbar-color", "RED").toUpperCase();
+        String bossBarStyle = getString(map, "bossbar-style", "PROGRESS").toUpperCase();
+        int despawnSecs     = toInt(map.get("despawn-after-seconds"), -1);
+        Map<Integer, List<String>> rewards = parseRewards(map.get("rewards"));
+
+        return new BossEntry(id, world, x, y, z, yaw, phId, realId, delay, broadcast, modelId,
+                bossBarTitle, bossBarColor, bossBarStyle, despawnSecs, rewards);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<Integer, List<String>> parseRewards(Object raw) {
+        Map<Integer, List<String>> result = new LinkedHashMap<>();
+        if (!(raw instanceof List<?> list)) return result;
+        for (Object entry : list) {
+            if (!(entry instanceof Map<?, ?> r)) continue;
+            int rank = toInt(r.get("rank"), -1);
+            if (rank < 1) continue;
+            List<String> cmds = new ArrayList<>();
+            Object cmdsRaw = r.get("commands");
+            if (cmdsRaw instanceof List<?> cmdList) {
+                for (Object c : cmdList) {
+                    if (c instanceof String s) cmds.add(s);
+                }
+            }
+            if (!cmds.isEmpty()) result.put(rank, Collections.unmodifiableList(cmds));
+        }
+        return Collections.unmodifiableMap(result);
     }
 
     private static double toDouble(Object val, double def) {
