@@ -1,0 +1,74 @@
+# ============================================================
+#  MossBoss  |  Yapımcı: wulnrydev
+#  BoxPvP sunucuları için Tılsım tabanlı Boss tetikleme sistemi.
+#
+#  Renk kullanımı:
+#   - Klasik kodlar:  &7, &l, &c ...
+#   - Hex kodlar:     &#RRGGBB
+# ============================================================
+
+prefix: "&#15FF08&lʙᴏxᴘᴠᴘ &8▸ "
+
+# ── Tılsım Eşyası Tanımı ────────────────────────────────────
+tilsim:
+  # Bukkit Material adı (BÜYÜK HARF)
+  material: NETHER_STAR
+  # ResourcePack custom model data değeri (-1 = devre dışı)
+  custom-model-data: 1001
+  # PDC anahtar değeri — eşyada bu değer olmalıdır
+  pdc-value: "mossboss_tilsim"
+
+# ── Global Mesajlar ─────────────────────────────────────────
+messages:
+  # Boss canlandırıldığında tüm sunucuya atılan duyuru.
+  # Kullanılabilir yer tutucular: %prefix%, %player%, %boss_name%
+  spawn-broadcast: "%prefix%&#00D420%boss_name% &7ɪsɪᴍʟɪ ʙᴏss, &#ffd500%player% &7ᴛᴀʀᴀꜰɪɴᴅᴀɴ ᴄᴀɴʟᴀɴᴅɪʀɪʟᴅɪ!"
+
+  # Oyuncu Tılsım olmadan tıkladığında gönderilen mesaj.
+  no-tilsim: "%prefix%&7ʙᴜ ʙᴏss'ᴜ ᴛᴇᴛɪᴋʟᴇᴍᴇᴋ ɪᴄɪɴ &#ffd500ᴛɪʟsɪᴍ &7ᴛᴜᴛᴍᴀʟɪsɪɴɪᴢ."
+
+  # Boss zaten aktifken tıklandığında gönderilen mesaj.
+  already-active: "%prefix%&7ʙᴜ ʙᴏss &#00D420ᴢᴀᴛᴇɴ ᴀᴋᴛɪꜰ&7. ᴅɪɢᴇʀ ᴏʏᴜɴᴄᴜʟᴀʀ ᴢᴀᴛᴇɴ ᴄᴀɴʟᴀɴᴅɪʀᴅɪ."
+
+  # Yapılandırma yeniden yüklendiğinde admin'e gönderilen mesaj.
+  reload-success: "%prefix%&#00D420Yᴀᴘɪʟᴀɴᴅɪʀᴍᴀ ʙᴀsᴀʀɪʏʟᴀ ʏᴇɴɪᴅᴇɴ ʏüᴋʟᴇɴᴅɪ."
+
+  # Geçersiz komut kullanımında gönderilen mesaj.
+  usage: "%prefix%&7ᴋᴜʟʟᴀɴɪᴍ&8: &#ffd500/mb <reload|status|forcespawn <id>>"
+
+  # Geçersiz boss ID'si girildiğinde.
+  unknown-boss: "%prefix%&7&#ffd500%id% &7ɪᴅ'ʟɪ ʙᴏss ʙᴜʟᴜɴᴀᴍᴀᴅɪ."
+
+# ── Boss Girişleri ──────────────────────────────────────────
+# Her giriş benzersiz bir 'id' değerine sahip olmalıdır.
+bosses:
+  - id: "ancient_golem"
+    # Boss'un bulunacağı dünya adı
+    world: "world"
+    # Koordinatlar
+    x: 0.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    # Haritada sabit duran, hareketsiz placeholder MythicMob tipi
+    placeholder-mythic-id: "AncientGolemPlaceholder"
+    # Tılsım ile tetiklenince spawn olan gerçek boss tipi
+    real-boss-mythic-id: "AncientGolem"
+    # Boss öldükten sonra placeholder'ın geri gelmesi için bekleme süresi (saniye)
+    respawn-delay-seconds: 3600
+    # Bu boss için özel duyuru mesajı (boş bırakılırsa global mesaj kullanılır)
+    spawn-broadcast: ""
+    # ModelEngine model adı (boş = ModelEngine kullanılmaz)
+    model-id: ""
+
+  - id: "void_titan"
+    world: "world"
+    x: 100.5
+    y: 64.0
+    z: -200.5
+    yaw: 90.0
+    placeholder-mythic-id: "VoidTitanPlaceholder"
+    real-boss-mythic-id: "VoidTitan"
+    respawn-delay-seconds: 7200
+    spawn-broadcast: "%prefix%&#00D420ᴠᴏɪᴅ ᴛɪᴛᴀɴ &7ᴜʏᴀɴᴅɪ! &#ffd500%player% &7ᴜʏᴀɴᴅɪʀᴅɪ!"
+    model-id: ""

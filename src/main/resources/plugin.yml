@@ -1,0 +1,25 @@
+name: MossBoss
+version: '${project.version}'
+main: dev.wulnry.mossboss.MossBoss
+api-version: '1.21'
+author: wulnrydev
+description: BoxPvP sunucuları için Tılsım tabanlı Boss tetikleme sistemi.
+
+depend:
+  - MythicMobs
+
+softdepend:
+  - ModelEngine
+
+commands:
+  mossboss:
+    description: MossBoss yönetim komutu.
+    usage: /<command> <reload|status|forcespawn <id>>
+    aliases:
+      - mb
+    permission: mossboss.admin
+
+permissions:
+  mossboss.admin:
+    description: MossBoss yönetim komutlarına erişim sağlar.
+    default: op

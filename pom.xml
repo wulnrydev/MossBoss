@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.wulnry</groupId>
+    <artifactId>mossboss</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>MossBoss</name>
+    <description>BoxPvP sunucuları için Tılsım tabanlı Boss tetikleme sistemi.</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <!-- Paper API -->
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <!-- MythicMobs -->
+        <repository>
+            <id>lumine-repo</id>
+            <url>https://mvn.lumine.io/repository/maven-public/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Paper API (Adventure/Component dahil) -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- MythicMobs 5.x dağıtım jar'ı -->
+        <dependency>
+            <groupId>io.lumine</groupId>
+            <artifactId>Mythic-Dist</artifactId>
+            <version>5.7.2</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+          ModelEngine (soft-depend): JitPack üzerinde private/ücretli olduğu için
+          Maven bağımlılığı olarak eklenemiyor. ModelEngineHook.java tamamen
+          reflection tabanlı yazıldı; derleme zamanında ModelEngine jar'ı gerekmez.
+          Sunucuya ModelEngine kuruluysa runtime'da otomatik etkinleşir.
+        -->
+    </dependencies>
+
+    <build>
+        <!-- Üretilen jar adı: MossBoss-1.0.0.jar -->
+        <finalName>${project.name}-${project.version}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+        </plugins>
+        <resources>
+            <!-- plugin.yml Maven değişkenleriyle filtrelenir (${project.version} vb.) -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>plugin.yml</include>
+                </includes>
+            </resource>
+            <!-- Diğer kaynaklar (config.yml) olduğu gibi kopyalanır. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>plugin.yml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+    </build>
+</project>
