@@ -22,8 +22,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -42,9 +44,11 @@ public final class BossManager {
     private final Map<String, BukkitTask> respawnTasks  = new ConcurrentHashMap<>();
 
     // Aktif boss'a ait bossbar, hasar tablosu ve otomatik despawn zamanlayıcısı
-    private final Map<String, BossBar>              activeBossBars  = new ConcurrentHashMap<>();
-    private final Map<String, Map<UUID, Double>>    damageTracker   = new ConcurrentHashMap<>();
-    private final Map<String, BukkitTask>           despawnTasks    = new ConcurrentHashMap<>();
+    private final Map<String, BossBar>              activeBossBars      = new ConcurrentHashMap<>();
+    private final Map<String, Map<UUID, Double>>    damageTracker       = new ConcurrentHashMap<>();
+    private final Map<String, BukkitTask>           despawnTasks        = new ConcurrentHashMap<>();
+    /** Aynı tick'te birden fazla bossbar güncellemesi planlanmasını önler. */
+    private final Set<String>                       pendingHealthUpdates = ConcurrentHashMap.newKeySet();
 
     public BossManager(MossBoss plugin, ConfigManager config, ModelEngineHook modelEngineHook) {
         this.plugin = plugin;
@@ -66,6 +70,7 @@ public final class BossManager {
         despawnTasks.values().forEach(BukkitTask::cancel);
         despawnTasks.clear();
 
+        pendingHealthUpdates.clear();
         hideBossBars();
         activeBossBars.clear();
         damageTracker.clear();
@@ -343,6 +348,7 @@ public final class BossManager {
         respawnTasks.clear();
         despawnTasks.values().forEach(BukkitTask::cancel);
         despawnTasks.clear();
+        pendingHealthUpdates.clear();
         hideBossBars();
         activeBossBars.clear();
         damageTracker.clear();
@@ -388,6 +394,8 @@ public final class BossManager {
         BukkitTask dt = despawnTasks.remove(bossId);
         if (dt != null) dt.cancel();
 
+        pendingHealthUpdates.remove(bossId);
+
         BossBar bar = activeBossBars.remove(bossId);
         if (bar != null) {
             Bukkit.getOnlinePlayers().forEach(p -> p.hideBossBar(bar));
@@ -400,61 +408,75 @@ public final class BossManager {
     private void distributeRewards(String bossId, BossEntry entry) {
         Map<UUID, Double> dmg = damageTracker.get(bossId);
 
-        List<Map.Entry<UUID, Double>> ranked = (dmg != null && !dmg.isEmpty())
+        // Snapshot — async'e geçmeden önce mutable map'ten kopyala
+        final List<Map.Entry<UUID, Double>> snapshot = (dmg != null && !dmg.isEmpty())
                 ? dmg.entrySet().stream()
                       .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
                       .toList()
                 : List.of();
 
-        // Komutları çalıştır
-        if (!entry.rewards().isEmpty()) {
-            entry.rewards().forEach((rank, reward) -> {
-                if (rank < 1 || rank > ranked.size()) return;
-                UUID winnerId = ranked.get(rank - 1).getKey();
-                OfflinePlayer winner = Bukkit.getOfflinePlayer(winnerId);
-                String playerName = winner.getName();
-                if (playerName == null) return;
-                for (String cmd : reward.commands()) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                            cmd.replace("{player}", playerName));
+        final Map<Integer, RewardEntry> rewardsSnap  = entry.rewards();
+        final String entryId      = entry.id();
+        final String headerTpl    = config.getKillBroadcastHeader();
+        final String rankTpl      = config.getKillBroadcastRank();
+        final String prefix       = config.getPrefix();
+        final int    maxRank      = Math.max(rewardsSnap.size(), Math.min(3, snapshot.size()));
+
+        // Disk I/O (getOfflinePlayer) async'te yap
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            record RankLine(int rank, String playerName, double damage, @Nullable RewardEntry reward) {}
+            List<RankLine> lines = new ArrayList<>(maxRank);
+
+            for (int rank = 1; rank <= maxRank && rank <= snapshot.size(); rank++) {
+                UUID   winnerId = snapshot.get(rank - 1).getKey();
+                double totalDmg = snapshot.get(rank - 1).getValue();
+
+                // Online oyuncu kontrolü (I/O yok, bellekte)
+                Player online = Bukkit.getPlayer(winnerId);
+                String playerName;
+                if (online != null) {
+                    playerName = online.getName();
+                } else {
+                    // Offline oyuncu — disk I/O burada güvenli (async thread)
+                    OfflinePlayer offline = Bukkit.getOfflinePlayer(winnerId);
+                    playerName = offline.getName();
+                    if (playerName == null) continue;
+                }
+                lines.add(new RankLine(rank, playerName, totalDmg, rewardsSnap.get(rank)));
+            }
+
+            // Komut dispatch ve broadcast ana thread'de yap
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                // Ödül komutlarını çalıştır
+                for (RankLine line : lines) {
+                    if (line.reward() == null) continue;
+                    for (String cmd : line.reward().commands()) {
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+                                cmd.replace("{player}", line.playerName()));
+                    }
+                }
+
+                // Kill broadcast
+                if (!headerTpl.isBlank()) {
+                    Bukkit.broadcast(ColorUtil.component(
+                            headerTpl.replace("%prefix%", prefix)
+                                     .replace("%boss_name%", entryId)));
+                }
+                if (!rankTpl.isBlank()) {
+                    for (RankLine line : lines) {
+                        String rewardName = (line.reward() != null && !line.reward().name().isBlank())
+                                ? line.reward().name() : "-";
+                        Bukkit.broadcast(ColorUtil.component(rankTpl
+                                .replace("%prefix%",    prefix)
+                                .replace("%boss_name%", entryId)
+                                .replace("%rank%",      String.valueOf(line.rank()))
+                                .replace("%player%",    line.playerName())
+                                .replace("%damage%",    String.format("%.0f", line.damage()))
+                                .replace("%reward%",    rewardName)));
+                    }
                 }
             });
-        }
-
-        // Kill broadcast
-        String headerTemplate = config.getKillBroadcastHeader();
-        String rankTemplate   = config.getKillBroadcastRank();
-        if (headerTemplate.isBlank() && rankTemplate.isBlank()) return;
-
-        if (!headerTemplate.isBlank()) {
-            String header = headerTemplate
-                    .replace("%prefix%",    config.getPrefix())
-                    .replace("%boss_name%", entry.id());
-            Bukkit.broadcast(ColorUtil.component(header));
-        }
-
-        if (!rankTemplate.isBlank()) {
-            int maxRank = Math.max(entry.rewards().size(), Math.min(3, ranked.size()));
-            for (int rank = 1; rank <= maxRank && rank <= ranked.size(); rank++) {
-                UUID winnerId = ranked.get(rank - 1).getKey();
-                double totalDmg = ranked.get(rank - 1).getValue();
-                OfflinePlayer winner = Bukkit.getOfflinePlayer(winnerId);
-                String playerName = winner.getName();
-                if (playerName == null) continue;
-
-                RewardEntry reward = entry.rewards().get(rank);
-                String rewardName = (reward != null && !reward.name().isBlank()) ? reward.name() : "-";
-
-                String line = rankTemplate
-                        .replace("%prefix%",    config.getPrefix())
-                        .replace("%boss_name%", entry.id())
-                        .replace("%rank%",      String.valueOf(rank))
-                        .replace("%player%",    playerName)
-                        .replace("%damage%",    String.format("%.0f", totalDmg))
-                        .replace("%reward%",    rewardName);
-                Bukkit.broadcast(ColorUtil.component(line));
-            }
-        }
+        });
     }
 
     public void handleBossDamage(UUID entityUuid, UUID attackerUuid, double damage) {
@@ -467,23 +489,28 @@ public final class BossManager {
     public void handleBossHealthUpdate(UUID entityUuid, double finalDamage) {
         String bossId = entityToBossId.get(entityUuid);
         if (bossId == null || !entityUuid.equals(realBossUuids.get(bossId))) return;
-        BossBar bar = activeBossBars.get(bossId);
-        if (bar == null) return;
+        if (activeBossBars.get(bossId) == null) return;
 
-        Entity entity = Bukkit.getEntity(entityUuid);
-        if (!(entity instanceof LivingEntity living)) return;
+        // Aynı tick içinde bu boss için zaten bir güncelleme planlandıysa tekrar planlamaya gerek yok
+        if (!pendingHealthUpdates.add(bossId)) return;
 
-        AttributeInstance attr = living.getAttribute(Attribute.MAX_HEALTH);
-        if (attr == null) return;
-        double maxHp = attr.getValue();
-        if (maxHp <= 0) return;
-
-        // Hasar henüz uygulanmadı — sonraki tick'te güncel sağlığı oku
+        // Tüm entity/attribute okumalarını bir sonraki tick'e ertele (event handler'ı bloklamaz)
         Bukkit.getScheduler().runTask(plugin, () -> {
-            if (living.isDead() || !living.isValid()) {
+            pendingHealthUpdates.remove(bossId);
+            BossBar bar = activeBossBars.get(bossId);
+            if (bar == null) return;
+
+            Entity entity = Bukkit.getEntity(entityUuid);
+            if (!(entity instanceof LivingEntity living) || living.isDead() || !living.isValid()) {
                 bar.progress(0.0f);
                 return;
             }
+
+            AttributeInstance attr = living.getAttribute(Attribute.MAX_HEALTH);
+            if (attr == null) return;
+            double maxHp = attr.getValue();
+            if (maxHp <= 0) return;
+
             float progress = (float) Math.max(0.0, Math.min(1.0, living.getHealth() / maxHp));
             bar.progress(progress);
 
