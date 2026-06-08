@@ -3,6 +3,7 @@ package dev.wulnry.mossboss.manager;
 import dev.wulnry.mossboss.MossBoss;
 import dev.wulnry.mossboss.config.BossEntry;
 import dev.wulnry.mossboss.config.ConfigManager;
+import dev.wulnry.mossboss.config.RewardEntry;
 import dev.wulnry.mossboss.hook.MythicMobsHook;
 import dev.wulnry.mossboss.hook.ModelEngineHook;
 import dev.wulnry.mossboss.util.ColorUtil;
@@ -104,8 +105,10 @@ public final class BossManager {
 
         entity.setInvulnerable(true);
         entity.setSilent(true);
+        entity.setPersistent(true);          // Minecraft doğal despawn'ını engelle
         if (entity instanceof Mob mob) {
             mob.setAI(false);
+            mob.setRemoveWhenFarAway(false); // Oyuncu uzaklaşınca silinmeyi engelle
         }
 
         UUID uuid = entity.getUniqueId();
@@ -354,6 +357,9 @@ public final class BossManager {
     // ── Bossbar / hasar / ödül yardımcıları ─────────────────────
 
     private void activateBoss(String bossId, Entity boss, BossEntry entry) {
+        boss.setPersistent(true);
+        if (boss instanceof Mob mob) mob.setRemoveWhenFarAway(false);
+
         damageTracker.put(bossId, new ConcurrentHashMap<>());
 
         if (!entry.bossBarTitle().isBlank()) {
@@ -392,24 +398,63 @@ public final class BossManager {
     }
 
     private void distributeRewards(String bossId, BossEntry entry) {
-        if (entry.rewards().isEmpty()) return;
         Map<UUID, Double> dmg = damageTracker.get(bossId);
-        if (dmg == null || dmg.isEmpty()) return;
 
-        List<Map.Entry<UUID, Double>> ranked = dmg.entrySet().stream()
-                .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
-                .toList();
+        List<Map.Entry<UUID, Double>> ranked = (dmg != null && !dmg.isEmpty())
+                ? dmg.entrySet().stream()
+                      .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
+                      .toList()
+                : List.of();
 
-        entry.rewards().forEach((rank, commands) -> {
-            if (rank < 1 || rank > ranked.size()) return;
-            UUID winnerId = ranked.get(rank - 1).getKey();
-            OfflinePlayer winner = Bukkit.getOfflinePlayer(winnerId);
-            String name = winner.getName();
-            if (name == null) return;
-            for (String cmd : commands) {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.replace("{player}", name));
+        // Komutları çalıştır
+        if (!entry.rewards().isEmpty()) {
+            entry.rewards().forEach((rank, reward) -> {
+                if (rank < 1 || rank > ranked.size()) return;
+                UUID winnerId = ranked.get(rank - 1).getKey();
+                OfflinePlayer winner = Bukkit.getOfflinePlayer(winnerId);
+                String playerName = winner.getName();
+                if (playerName == null) return;
+                for (String cmd : reward.commands()) {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+                            cmd.replace("{player}", playerName));
+                }
+            });
+        }
+
+        // Kill broadcast
+        String headerTemplate = config.getKillBroadcastHeader();
+        String rankTemplate   = config.getKillBroadcastRank();
+        if (headerTemplate.isBlank() && rankTemplate.isBlank()) return;
+
+        if (!headerTemplate.isBlank()) {
+            String header = headerTemplate
+                    .replace("%prefix%",    config.getPrefix())
+                    .replace("%boss_name%", entry.id());
+            Bukkit.broadcast(ColorUtil.component(header));
+        }
+
+        if (!rankTemplate.isBlank()) {
+            int maxRank = Math.max(entry.rewards().size(), Math.min(3, ranked.size()));
+            for (int rank = 1; rank <= maxRank && rank <= ranked.size(); rank++) {
+                UUID winnerId = ranked.get(rank - 1).getKey();
+                double totalDmg = ranked.get(rank - 1).getValue();
+                OfflinePlayer winner = Bukkit.getOfflinePlayer(winnerId);
+                String playerName = winner.getName();
+                if (playerName == null) continue;
+
+                RewardEntry reward = entry.rewards().get(rank);
+                String rewardName = (reward != null && !reward.name().isBlank()) ? reward.name() : "-";
+
+                String line = rankTemplate
+                        .replace("%prefix%",    config.getPrefix())
+                        .replace("%boss_name%", entry.id())
+                        .replace("%rank%",      String.valueOf(rank))
+                        .replace("%player%",    playerName)
+                        .replace("%damage%",    String.format("%.0f", totalDmg))
+                        .replace("%reward%",    rewardName);
+                Bukkit.broadcast(ColorUtil.component(line));
             }
-        });
+        }
     }
 
     public void handleBossDamage(UUID entityUuid, UUID attackerUuid, double damage) {

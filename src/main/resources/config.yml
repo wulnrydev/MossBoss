@@ -45,6 +45,14 @@ messages:
   # Geçersiz boss ID'si girildiğinde.
   unknown-boss: "%prefix%&7&#ffd500%id% &7ɪᴅ'ʟɪ ʙᴏss ʙᴜʟᴜɴᴀᴍᴀᴅɪ."
 
+  # Boss öldürüldüğünde atılan duyuru başlığı.
+  # Yer tutucular: %prefix%, %boss_name%
+  kill-broadcast-header: "%prefix%&#ff4444%boss_name% &7ᴋᴀᴛʟᴇᴅɪʟᴅɪ! &8ᴇɴ ᴄᴏᴋ ʜᴀsᴀʀ ᴠᴇʀᴇɴʟᴇʀ&8:"
+
+  # Her sıralama için tek satır.
+  # Yer tutucular: %prefix%, %boss_name%, %rank%, %player%, %damage%, %reward%
+  kill-broadcast-rank: "%prefix%&#ffd500%rank%. &7%player% &8▸ &c%damage% &7ʜᴀsᴀʀ &8| &#00D420%reward%"
+
 # ── Boss Girişleri ──────────────────────────────────────────
 # Her giriş benzersiz bir 'id' değerine sahip olmalıdır.
 bosses:
@@ -77,14 +85,18 @@ bosses:
     despawn-after-seconds: 900
     # Ödüller — en çok hasar veren oyunculara sırasıyla verilir
     # {player} yer tutucusu oyuncu adıyla değiştirilir
+    # name: kill duyurusunda gösterilecek ödül adı
     rewards:
       - rank: 1
+        name: "Kit Kasası Anahtarı"
         commands:
           - "crates key give {player} kit 1"
       - rank: 2
+        name: "Coin Kasası Anahtarı"
         commands:
           - "crates key give {player} coin 1"
       - rank: 3
+        name: "Event Kasası Anahtarı"
         commands:
           - "crates key give {player} event 1"
 
@@ -105,11 +117,14 @@ bosses:
     despawn-after-seconds: 900
     rewards:
       - rank: 1
+        name: "Kit Kasası Anahtarı"
         commands:
           - "crates key give {player} kit 1"
       - rank: 2
+        name: "Coin Kasası Anahtarı"
         commands:
           - "crates key give {player} coin 1"
       - rank: 3
+        name: "Event Kasası Anahtarı"
         commands:
           - "crates key give {player} event 1"

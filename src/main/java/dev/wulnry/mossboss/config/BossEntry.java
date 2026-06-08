@@ -1,6 +1,5 @@
 package dev.wulnry.mossboss.config;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,7 +20,7 @@ import java.util.Map;
  * @param bossBarColor          bossbar rengi: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
  * @param bossBarStyle          bossbar stili: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
  * @param despawnAfterSeconds   boss bu süre içinde öldürülmezse otomatik yok olur (-1 = sınırsız)
- * @param rewards               sıralama (1,2,3…) → çalıştırılacak komut listesi; {player} yer tutucu
+ * @param rewards               sıralama (1,2,3…) → RewardEntry (isim + komutlar)
  */
 public record BossEntry(
         String id,
@@ -39,5 +38,5 @@ public record BossEntry(
         String bossBarColor,
         String bossBarStyle,
         int despawnAfterSeconds,
-        Map<Integer, List<String>> rewards
+        Map<Integer, RewardEntry> rewards
 ) {}

@@ -8,6 +8,7 @@ import dev.wulnry.mossboss.listener.BossDeathListener;
 import dev.wulnry.mossboss.listener.BossInteractListener;
 import dev.wulnry.mossboss.manager.BossManager;
 import dev.wulnry.mossboss.util.ItemUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -45,8 +46,8 @@ public final class MossBoss extends JavaPlugin {
         // 4) Boss yöneticisini oluştur
         this.bossManager = new BossManager(this, configManager, modelEngineHook);
 
-        // 5) Placeholder mob'ları spawn et
-        bossManager.spawnAllPlaceholders();
+        // 5) Placeholder mob'ları spawn et — MythicMobs'un tam başlaması için 1 tick bekle
+        Bukkit.getScheduler().runTask(this, bossManager::spawnAllPlaceholders);
 
         // 6) Olay dinleyicilerini kaydet
         getServer().getPluginManager().registerEvents(new BossInteractListener(bossManager), this);

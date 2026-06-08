@@ -28,6 +28,8 @@ public final class ConfigManager {
     private String reloadSuccessMessage;
     private String usageMessage;
     private String unknownBossMessage;
+    private String killBroadcastHeader;
+    private String killBroadcastRank;
 
     private Material tilsimMaterial;
     private String tilsimDisplayName;
@@ -58,6 +60,8 @@ public final class ConfigManager {
         reloadSuccessMessage   = config.getString("messages.reload-success", "");
         usageMessage           = config.getString("messages.usage", "");
         unknownBossMessage     = config.getString("messages.unknown-boss", "");
+        killBroadcastHeader    = config.getString("messages.kill-broadcast-header", "");
+        killBroadcastRank      = config.getString("messages.kill-broadcast-rank", "");
 
         // Tılsım eşya ayarları
         String matName = config.getString("tilsim.material", "NETHER_STAR").toUpperCase();
@@ -107,20 +111,20 @@ public final class ConfigManager {
         String bossBarColor = getString(map, "bossbar-color", "RED").toUpperCase();
         String bossBarStyle = getString(map, "bossbar-style", "PROGRESS").toUpperCase();
         int despawnSecs     = toInt(map.get("despawn-after-seconds"), -1);
-        Map<Integer, List<String>> rewards = parseRewards(map.get("rewards"));
+        Map<Integer, RewardEntry> rewards = parseRewards(map.get("rewards"));
 
         return new BossEntry(id, world, x, y, z, yaw, phId, realId, delay, broadcast, modelId,
                 bossBarTitle, bossBarColor, bossBarStyle, despawnSecs, rewards);
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<Integer, List<String>> parseRewards(Object raw) {
-        Map<Integer, List<String>> result = new LinkedHashMap<>();
+    private Map<Integer, RewardEntry> parseRewards(Object raw) {
+        Map<Integer, RewardEntry> result = new LinkedHashMap<>();
         if (!(raw instanceof List<?> list)) return result;
         for (Object entry : list) {
             if (!(entry instanceof Map<?, ?> r)) continue;
             int rank = toInt(r.get("rank"), -1);
             if (rank < 1) continue;
+            String name = r.get("name") instanceof String s ? s : "";
             List<String> cmds = new ArrayList<>();
             Object cmdsRaw = r.get("commands");
             if (cmdsRaw instanceof List<?> cmdList) {
@@ -128,7 +132,7 @@ public final class ConfigManager {
                     if (c instanceof String s) cmds.add(s);
                 }
             }
-            if (!cmds.isEmpty()) result.put(rank, Collections.unmodifiableList(cmds));
+            result.put(rank, new RewardEntry(name, Collections.unmodifiableList(cmds)));
         }
         return Collections.unmodifiableMap(result);
     }
@@ -164,6 +168,8 @@ public final class ConfigManager {
     public String getReloadSuccessMessage()  { return reloadSuccessMessage; }
     public String getUsageMessage()          { return usageMessage; }
     public String getUnknownBossMessage()    { return unknownBossMessage; }
+    public String getKillBroadcastHeader()   { return killBroadcastHeader; }
+    public String getKillBroadcastRank()     { return killBroadcastRank; }
     public Material getTilsimMaterial()      { return tilsimMaterial; }
     public String getTilsimDisplayName()     { return tilsimDisplayName; }
     public List<String> getTilsimLore()      { return tilsimLore; }
