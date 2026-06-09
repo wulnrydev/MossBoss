@@ -15,7 +15,7 @@ public final class BossDeathListener implements Listener {
         this.manager = manager;
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMythicMobDeath(MythicMobDeathEvent event) {
         manager.handleBossDeath(event.getMob().getUniqueId());
     }

@@ -6,6 +6,7 @@ import java.util.Map;
  * Bir boss yapılandırma girişini temsil eden değişmez (immutable) veri nesnesi.
  *
  * @param id                    config'deki benzersiz tanımlayıcı
+ * @param displayName           oyunculara gösterilecek ad (broadcast'lerde %boss_name%); boşsa id kullanılır
  * @param worldName             boss'un spawn olacağı dünya adı
  * @param x                     X koordinatı
  * @param y                     Y koordinatı
@@ -24,6 +25,7 @@ import java.util.Map;
  */
 public record BossEntry(
         String id,
+        String displayName,
         String worldName,
         double x,
         double y,

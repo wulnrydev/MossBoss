@@ -5,6 +5,7 @@ import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -17,8 +18,13 @@ import java.util.UUID;
  */
 public final class MythicMobsHook {
 
-    private MythicMobsHook() {
-        // Yardımcı sınıf; örneklenemez.
+    private static java.util.logging.Logger logger = java.util.logging.Logger.getLogger("MossBoss");
+
+    private MythicMobsHook() {}
+
+    /** Plugin logger'ını bağlar; onEnable'dan çağrılmalı. */
+    public static void init(JavaPlugin plugin) {
+        logger = plugin.getLogger();
     }
 
     /**
@@ -38,8 +44,7 @@ public final class MythicMobsHook {
             }
             return activeMob.getEntity().getBukkitEntity();
         } catch (Exception e) {
-            java.util.logging.Logger.getLogger("MossBoss")
-                    .warning("MythicMobs spawn hatası [" + mythicId + "]: " + e.getMessage());
+            logger.warning("MythicMobs spawn hatası [" + mythicId + "]: " + e.getMessage());
             return null;
         }
     }
@@ -67,17 +72,4 @@ public final class MythicMobsHook {
         getActiveMob(uuid).ifPresent(ActiveMob::remove);
     }
 
-    /**
-     * Verilen varlığın aktif bir MythicMob olup olmadığını kontrol eder.
-     *
-     * @param entity kontrol edilecek varlık
-     * @return {@code true} ise MythicMob
-     */
-    public static boolean isMythicMob(Entity entity) {
-        try {
-            return MythicBukkit.inst().getMobManager().isActiveMob(entity.getUniqueId());
-        } catch (Exception e) {
-            return false;
-        }
-    }
 }

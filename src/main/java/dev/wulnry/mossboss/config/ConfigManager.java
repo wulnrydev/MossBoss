@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -64,7 +65,7 @@ public final class ConfigManager {
         killBroadcastRank      = config.getString("messages.kill-broadcast-rank", "");
 
         // Tılsım eşya ayarları
-        String matName = config.getString("tilsim.material", "NETHER_STAR").toUpperCase();
+        String matName = config.getString("tilsim.material", "NETHER_STAR").toUpperCase(Locale.ROOT);
         tilsimMaterial = parseMaterial(matName);
         tilsimDisplayName  = config.getString("tilsim.display-name", "&#ffd500&lTılsım");
         tilsimLore         = Collections.unmodifiableList(config.getStringList("tilsim.lore"));
@@ -91,6 +92,9 @@ public final class ConfigManager {
             return null;
         }
 
+        String displayName = getString(map, "display-name", "");
+        if (displayName.isBlank()) displayName = id;
+
         String world     = getString(map, "world", "world");
         double x         = toDouble(map.get("x"), 0.0);
         double y         = toDouble(map.get("y"), 64.0);
@@ -108,12 +112,12 @@ public final class ConfigManager {
         }
 
         String bossBarTitle = getString(map, "bossbar-title", "");
-        String bossBarColor = getString(map, "bossbar-color", "RED").toUpperCase();
-        String bossBarStyle = getString(map, "bossbar-style", "PROGRESS").toUpperCase();
+        String bossBarColor = getString(map, "bossbar-color", "RED").toUpperCase(Locale.ROOT);
+        String bossBarStyle = getString(map, "bossbar-style", "PROGRESS").toUpperCase(Locale.ROOT);
         int despawnSecs     = toInt(map.get("despawn-after-seconds"), -1);
         Map<Integer, RewardEntry> rewards = parseRewards(map.get("rewards"));
 
-        return new BossEntry(id, world, x, y, z, yaw, phId, realId, delay, broadcast, modelId,
+        return new BossEntry(id, displayName, world, x, y, z, yaw, phId, realId, delay, broadcast, modelId,
                 bossBarTitle, bossBarColor, bossBarStyle, despawnSecs, rewards);
     }
 

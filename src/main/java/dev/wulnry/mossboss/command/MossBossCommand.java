@@ -14,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * {@code /mossboss} (takma ad: {@code /mb}) yönetim komutu.
@@ -43,7 +44,7 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        switch (args[0].toLowerCase()) {
+        switch (args[0].toLowerCase(Locale.ROOT)) {
             case "reload" -> handleReload(sender);
             case "status" -> handleStatus(sender);
             case "forcespawn" -> {
@@ -61,10 +62,10 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleReload(CommandSender sender) {
-        // Mevcut varlıkları temizle, konfigürasyonu yeniden yükle, placeholder'ları tekrar spawn et.
         plugin.getBossManager().despawnAll();
         plugin.getConfigManager().load();
-        plugin.getBossManager().spawnAllPlaceholders();
+        // onEnable'daki gibi 1 tick bekle — MythicMobs removal queue'su işlensin
+        Bukkit.getScheduler().runTask(plugin, plugin.getBossManager()::spawnAllPlaceholders);
 
         sender.sendMessage(ColorUtil.component(
                 replacePrefixPlaceholder(plugin.getConfigManager().getReloadSuccessMessage())));
@@ -174,7 +175,7 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
 
     private List<String> filterStartsWith(List<String> source, String prefix) {
         return source.stream()
-                .filter(s -> s.toLowerCase().startsWith(prefix.toLowerCase()))
+                .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(prefix.toLowerCase(Locale.ROOT)))
                 .toList();
     }
 }

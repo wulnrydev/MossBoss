@@ -95,7 +95,8 @@ public final class ModelEngineHook {
             if (modeledEntity != null) {
                 destroyHandle.invokeWithArguments(modeledEntity);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            plugin.getLogger().warning("Model kaldırılırken hata [" + entity.getUniqueId() + "]: " + t.getMessage());
         }
     }
 }

@@ -3,6 +3,7 @@ package dev.wulnry.mossboss;
 import dev.wulnry.mossboss.command.MossBossCommand;
 import dev.wulnry.mossboss.config.ConfigManager;
 import dev.wulnry.mossboss.hook.ModelEngineHook;
+import dev.wulnry.mossboss.hook.MythicMobsHook;
 import dev.wulnry.mossboss.listener.BossActiveListener;
 import dev.wulnry.mossboss.listener.BossDeathListener;
 import dev.wulnry.mossboss.listener.BossInteractListener;
@@ -35,9 +36,10 @@ public final class MossBoss extends JavaPlugin {
             return;
         }
 
-        // 2) ModelEngine opsiyonel bağımlılık (soft-depend)
-        this.modelEngineHook = new ModelEngineHook(this);
+        // 2) Statik yardımcıları ve hook'ları başlat
+        MythicMobsHook.init(this);
         ItemUtil.init(this);
+        this.modelEngineHook = new ModelEngineHook(this);
 
         // 3) Yapılandırmayı yükle
         this.configManager = new ConfigManager(this);
@@ -46,8 +48,12 @@ public final class MossBoss extends JavaPlugin {
         // 4) Boss yöneticisini oluştur
         this.bossManager = new BossManager(this, configManager, modelEngineHook);
 
-        // 5) Placeholder mob'ları spawn et — MythicMobs'un tam başlaması için 1 tick bekle
-        Bukkit.getScheduler().runTask(this, bossManager::spawnAllPlaceholders);
+        // 5) Placeholder mob'ları spawn et — MythicMobs'un tam başlaması için 1 tick bekle.
+        //    Önce önceki oturumdan (crash sonrası temizlenememiş) orphan entity'leri sil.
+        Bukkit.getScheduler().runTask(this, () -> {
+            bossManager.cleanupOrphans();
+            bossManager.spawnAllPlaceholders();
+        });
 
         // 6) Olay dinleyicilerini kaydet
         getServer().getPluginManager().registerEvents(new BossInteractListener(bossManager), this);

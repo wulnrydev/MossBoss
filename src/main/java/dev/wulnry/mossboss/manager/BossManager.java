@@ -23,6 +23,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class BossManager {
 
     public enum ForcespawnResult { SUCCESS, ALREADY_ACTIVE, SPAWN_FAILED }
+
+    /** Plugin'in spawn ettiği her entity'ye eklenen etiket; açılışta orphan temizliğinde kullanılır. */
+    private static final String ENTITY_TAG = "mossboss_entity";
 
     private final MossBoss plugin;
     private final ConfigManager config;
@@ -64,6 +68,27 @@ public final class BossManager {
         }
     }
 
+    /**
+     * Önceki oturumdan (örn. crash sonrası onDisable çalışmadığında) kalan, plugin'e ait tüm
+     * entity'leri yüklü dünyalardan temizler. Placeholder'lar kalıcı (persistent) olduğundan
+     * bu yapılmazsa her açılışta üst üste birikirler.
+     */
+    public void cleanupOrphans() {
+        int removed = 0;
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity e : world.getEntities()) {
+                if (!e.getScoreboardTags().contains(ENTITY_TAG)) continue;
+                modelEngineHook.removeModel(e);
+                MythicMobsHook.removeMob(e.getUniqueId());
+                if (e.isValid()) e.remove();
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            plugin.getLogger().info(removed + " orphan boss entity temizlendi (önceki oturumdan kalan).");
+        }
+    }
+
     public void despawnAll() {
         respawnTasks.values().forEach(BukkitTask::cancel);
         respawnTasks.clear();
@@ -75,18 +100,26 @@ public final class BossManager {
         activeBossBars.clear();
         damageTracker.clear();
 
-        for (Map.Entry<String, UUID> e : placeholderUuids.entrySet()) {
-            removeEntitySilently(e.getValue());
-        }
-        for (Map.Entry<String, UUID> e : realBossUuids.entrySet()) {
-            MythicMobsHook.removeMob(e.getValue());
-        }
-
+        // Entity'leri silmeden ÖNCE reverse-lookup'u ve UUID haritalarını temizle.
+        // removeMob senkron MythicMobDeathEvent tetikler; haritalar önceden boşaltıldığı için
+        // handleBossDeath hemen return eder ve reload sırasında orphan respawn task oluşmaz.
+        final List<UUID> phList;
+        final List<UUID> bossList;
         synchronized (this) {
+            phList   = new ArrayList<>(placeholderUuids.values());
+            bossList = new ArrayList<>(realBossUuids.values());
             placeholderUuids.clear();
             realBossUuids.clear();
             entityToBossId.clear();
         }
+
+        for (UUID uuid : phList) {
+            removeEntitySilently(uuid);
+        }
+        for (UUID uuid : bossList) {
+            MythicMobsHook.removeMob(uuid);
+        }
+
         respawnAt.clear();
     }
 
@@ -111,6 +144,7 @@ public final class BossManager {
         entity.setInvulnerable(true);
         entity.setSilent(true);
         entity.setPersistent(true);          // Minecraft doğal despawn'ını engelle
+        entity.addScoreboardTag(ENTITY_TAG); // Açılışta orphan temizliği için işaretle
         if (entity instanceof Mob mob) {
             mob.setAI(false);
             mob.setRemoveWhenFarAway(false); // Oyuncu uzaklaşınca silinmeyi engelle
@@ -143,6 +177,10 @@ public final class BossManager {
         }
 
         if (realBossUuids.containsKey(bossId)) {
+            // Gerçek boss entitysine tıklanıyorsa (dövüş sırasında) mesaj gösterme, olayı geçir
+            if (entity.getUniqueId().equals(realBossUuids.get(bossId))) {
+                return false;
+            }
             player.sendMessage(ColorUtil.component(
                     replacePrefixPlaceholder(config.getAlreadyActiveMessage())));
             return true;
@@ -163,10 +201,10 @@ public final class BossManager {
             phUuid = placeholderUuids.remove(bossId);
             if (phUuid != null) entityToBossId.remove(phUuid);
         }
-        if (phUuid != null) {
-            modelEngineHook.removeModel(entity);
-            MythicMobsHook.removeMob(phUuid);
-        }
+        // Placeholder eş zamanlı olarak başka bir akış tarafından zaten tüketildiyse dur.
+        if (phUuid == null) return true;
+        modelEngineHook.removeModel(entity);
+        MythicMobsHook.removeMob(phUuid);
 
         World world = Bukkit.getWorld(entry.worldName());
         if (world == null) {
@@ -195,7 +233,7 @@ public final class BossManager {
         String message = raw
                 .replace("%prefix%", config.getPrefix())
                 .replace("%player%", player.getName())
-                .replace("%boss_name%", entry.id());
+                .replace("%boss_name%", entry.displayName());
         Bukkit.broadcast(ColorUtil.component(message));
 
         return true;
@@ -240,12 +278,12 @@ public final class BossManager {
         }
 
         deactivateBoss(bossId, entry);
+        scheduleRespawn(bossId, entry.respawnDelaySeconds());
+    }
 
-        long respawnMillis = (long) entry.respawnDelaySeconds() * 1000L;
-        respawnAt.put(bossId, System.currentTimeMillis() + respawnMillis);
-
-        long delayTicks = (long) entry.respawnDelaySeconds() * 20L;
-
+    /** Boss yok olduktan sonra placeholder'ı respawnDelay saniye sonra geri getirir. */
+    private void scheduleRespawn(String bossId, int delaySeconds) {
+        respawnAt.put(bossId, System.currentTimeMillis() + (long) delaySeconds * 1000L);
         if (!plugin.isEnabled()) return;
 
         BukkitTask old = respawnTasks.remove(bossId);
@@ -255,11 +293,29 @@ public final class BossManager {
             respawnTasks.remove(bossId);
             if (placeholderUuids.containsKey(bossId) || realBossUuids.containsKey(bossId)) return;
             BossEntry fresh = config.getBosses().get(bossId);
-            if (fresh != null) {
-                spawnPlaceholder(fresh);
-            }
-        }, delayTicks);
+            if (fresh != null) spawnPlaceholder(fresh);
+        }, (long) delaySeconds * 20L);
         respawnTasks.put(bossId, task);
+    }
+
+    /**
+     * despawn-after-seconds süresi dolduğunda çağrılır: boss'u ölüm/ödül tetiklemeden
+     * sessizce kaldırır ve placeholder respawn'ını zamanlar.
+     */
+    private void despawnExpired(String bossId) {
+        final UUID bossUuid;
+        synchronized (this) {
+            bossUuid = realBossUuids.remove(bossId);
+            if (bossUuid == null) return;          // bu arada öldürülmüş/temizlenmiş
+            entityToBossId.remove(bossUuid);
+        }
+        // Bossbar'ı kapat ama ödül DAĞITMA (boss ölmedi, süresi doldu).
+        deactivateBoss(bossId, null);
+        // Maps temizlendiği için removeMob'un tetiklediği MythicMobDeathEvent yok sayılır.
+        removeEntitySilently(bossUuid);
+
+        BossEntry entry = config.getBosses().get(bossId);
+        if (entry != null) scheduleRespawn(bossId, entry.respawnDelaySeconds());
     }
 
     // ── Admin / komut yardımcıları ────────────────────────────
@@ -313,7 +369,7 @@ public final class BossManager {
         String message = raw
                 .replace("%prefix%", config.getPrefix())
                 .replace("%player%", sender != null ? sender.getName() : "Konsol")
-                .replace("%boss_name%", entry.id());
+                .replace("%boss_name%", entry.displayName());
         Bukkit.broadcast(ColorUtil.component(message));
 
         return ForcespawnResult.SUCCESS;
@@ -343,28 +399,12 @@ public final class BossManager {
         return sb.length() == 0 ? "&7Hiç boss yapılandırması bulunamadı." : sb.toString();
     }
 
-    public void clearState() {
-        respawnTasks.values().forEach(BukkitTask::cancel);
-        respawnTasks.clear();
-        despawnTasks.values().forEach(BukkitTask::cancel);
-        despawnTasks.clear();
-        pendingHealthUpdates.clear();
-        hideBossBars();
-        activeBossBars.clear();
-        damageTracker.clear();
-        synchronized (this) {
-            placeholderUuids.clear();
-            realBossUuids.clear();
-            entityToBossId.clear();
-        }
-        respawnAt.clear();
-    }
-
     // ── Bossbar / hasar / ödül yardımcıları ─────────────────────
 
     private void activateBoss(String bossId, Entity boss, BossEntry entry) {
         boss.setPersistent(true);
         if (boss instanceof Mob mob) mob.setRemoveWhenFarAway(false);
+        boss.addScoreboardTag(ENTITY_TAG);   // Açılışta orphan temizliği için işaretle
 
         damageTracker.put(bossId, new ConcurrentHashMap<>());
 
@@ -382,9 +422,7 @@ public final class BossManager {
         if (despawnSecs > 0) {
             BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 despawnTasks.remove(bossId);
-                if (boss instanceof LivingEntity living && !living.isDead()) {
-                    living.setHealth(0.0);
-                }
+                despawnExpired(bossId);   // ölüm/ödül tetiklemeden sessizce kaldır
             }, (long) despawnSecs * 20L);
             despawnTasks.put(bossId, task);
         }
@@ -406,6 +444,7 @@ public final class BossManager {
     }
 
     private void distributeRewards(String bossId, BossEntry entry) {
+        if (!plugin.isEnabled()) return;   // shutdown/reload sırasında görev zamanlama yasak
         Map<UUID, Double> dmg = damageTracker.get(bossId);
 
         // Snapshot — async'e geçmeden önce mutable map'ten kopyala
@@ -416,11 +455,19 @@ public final class BossManager {
                 : List.of();
 
         final Map<Integer, RewardEntry> rewardsSnap  = entry.rewards();
-        final String entryId      = entry.id();
+        final String bossDisplay  = entry.displayName();
         final String headerTpl    = config.getKillBroadcastHeader();
         final String rankTpl      = config.getKillBroadcastRank();
         final String prefix       = config.getPrefix();
-        final int    maxRank      = Math.max(rewardsSnap.size(), Math.min(3, snapshot.size()));
+        // En az 3 satır veya yapılandırılmış ödül sayısı kadar sıralama yayınla, oyuncu sayısını geçme
+        final int    maxRank      = Math.min(snapshot.size(), Math.max(rewardsSnap.size(), 3));
+
+        // Online oyuncu isimlerini main thread'de topla — Bukkit.getPlayer async'te thread-safe değil
+        final Map<UUID, String> onlineNames = new HashMap<>();
+        for (Map.Entry<UUID, Double> e : snapshot) {
+            Player p = Bukkit.getPlayer(e.getKey());
+            if (p != null) onlineNames.put(e.getKey(), p.getName());
+        }
 
         // Disk I/O (getOfflinePlayer) async'te yap
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -431,12 +478,8 @@ public final class BossManager {
                 UUID   winnerId = snapshot.get(rank - 1).getKey();
                 double totalDmg = snapshot.get(rank - 1).getValue();
 
-                // Online oyuncu kontrolü (I/O yok, bellekte)
-                Player online = Bukkit.getPlayer(winnerId);
-                String playerName;
-                if (online != null) {
-                    playerName = online.getName();
-                } else {
+                String playerName = onlineNames.get(winnerId);
+                if (playerName == null) {
                     // Offline oyuncu — disk I/O burada güvenli (async thread)
                     OfflinePlayer offline = Bukkit.getOfflinePlayer(winnerId);
                     playerName = offline.getName();
@@ -444,6 +487,9 @@ public final class BossManager {
                 }
                 lines.add(new RankLine(rank, playerName, totalDmg, rewardsSnap.get(rank)));
             }
+
+            // Sunucu kapanıyorsa main-thread görevini zamanlamaya çalışma (IllegalPluginAccessException)
+            if (!plugin.isEnabled()) return;
 
             // Komut dispatch ve broadcast ana thread'de yap
             Bukkit.getScheduler().runTask(plugin, () -> {
@@ -460,7 +506,7 @@ public final class BossManager {
                 if (!headerTpl.isBlank()) {
                     Bukkit.broadcast(ColorUtil.component(
                             headerTpl.replace("%prefix%", prefix)
-                                     .replace("%boss_name%", entryId)));
+                                     .replace("%boss_name%", bossDisplay)));
                 }
                 if (!rankTpl.isBlank()) {
                     for (RankLine line : lines) {
@@ -468,7 +514,7 @@ public final class BossManager {
                                 ? line.reward().name() : "-";
                         Bukkit.broadcast(ColorUtil.component(rankTpl
                                 .replace("%prefix%",    prefix)
-                                .replace("%boss_name%", entryId)
+                                .replace("%boss_name%", bossDisplay)
                                 .replace("%rank%",      String.valueOf(line.rank()))
                                 .replace("%player%",    line.playerName())
                                 .replace("%damage%",    String.format("%.0f", line.damage()))
@@ -486,7 +532,7 @@ public final class BossManager {
                 .merge(attackerUuid, damage, Double::sum);
     }
 
-    public void handleBossHealthUpdate(UUID entityUuid, double finalDamage) {
+    public void handleBossHealthUpdate(UUID entityUuid) {
         String bossId = entityToBossId.get(entityUuid);
         if (bossId == null || !entityUuid.equals(realBossUuids.get(bossId))) return;
         if (activeBossBars.get(bossId) == null) return;
@@ -547,7 +593,11 @@ public final class BossManager {
             case "YELLOW" -> BossBar.Color.YELLOW;
             case "PURPLE" -> BossBar.Color.PURPLE;
             case "WHITE"  -> BossBar.Color.WHITE;
-            default       -> BossBar.Color.RED;
+            case "RED"    -> BossBar.Color.RED;
+            default       -> {
+                plugin.getLogger().warning("Geçersiz bossbar rengi: '" + str + "'. RED kullanılıyor.");
+                yield BossBar.Color.RED;
+            }
         };
     }
 
@@ -557,7 +607,11 @@ public final class BossManager {
             case "NOTCHED_10" -> BossBar.Overlay.NOTCHED_10;
             case "NOTCHED_12" -> BossBar.Overlay.NOTCHED_12;
             case "NOTCHED_20" -> BossBar.Overlay.NOTCHED_20;
-            default           -> BossBar.Overlay.PROGRESS;
+            case "PROGRESS"   -> BossBar.Overlay.PROGRESS;
+            default           -> {
+                plugin.getLogger().warning("Geçersiz bossbar stili: '" + str + "'. PROGRESS kullanılıyor.");
+                yield BossBar.Overlay.PROGRESS;
+            }
         };
     }
 

@@ -57,6 +57,8 @@ messages:
 # Her giriş benzersiz bir 'id' değerine sahip olmalıdır.
 bosses:
   - id: "ancient_golem"
+    # Oyunculara gösterilecek ad (broadcast'lerde %boss_name%). Boş/eksikse 'id' kullanılır.
+    display-name: "&#ffd500Ancient Golem"
     # Boss'un bulunacağı dünya adı
     world: "world"
     # Koordinatlar
@@ -81,7 +83,8 @@ bosses:
     bossbar-color: "YELLOW"
     # Stil: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
     bossbar-style: "PROGRESS"
-    # Otomatik despawn — boss bu süre (saniye) içinde öldürülmezse yok olur (-1 = sınırsız)
+    # Otomatik despawn — boss bu süre (saniye) içinde öldürülmezse sessizce yok olur.
+    # Ölüm sayılmaz: ödül dağıtılmaz, loot/ölüm skill'i tetiklenmez. (-1 = sınırsız)
     despawn-after-seconds: 900
     # Ödüller — en çok hasar veren oyunculara sırasıyla verilir
     # {player} yer tutucusu oyuncu adıyla değiştirilir
@@ -101,6 +104,7 @@ bosses:
           - "crates key give {player} event 1"
 
   - id: "void_titan"
+    display-name: "&#9b59b6Void Titan"
     world: "world"
     x: 100.5
     y: 64.0

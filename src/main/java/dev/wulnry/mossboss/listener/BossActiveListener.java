@@ -39,7 +39,7 @@ public final class BossActiveListener implements Listener {
     // Herhangi bir hasar sonrası bossbar sağlık yüzdesini güncelle
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageEvent event) {
-        manager.handleBossHealthUpdate(event.getEntity().getUniqueId(), event.getFinalDamage());
+        manager.handleBossHealthUpdate(event.getEntity().getUniqueId());
     }
 
     // Sunucuya yeni katılan oyuncuya aktif bossbarleri göster
