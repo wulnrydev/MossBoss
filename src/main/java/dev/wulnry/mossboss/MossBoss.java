@@ -11,6 +11,9 @@ import dev.wulnry.mossboss.manager.BossManager;
 import dev.wulnry.mossboss.util.ItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.ServerLoadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -26,6 +29,7 @@ public final class MossBoss extends JavaPlugin {
     private ConfigManager configManager;
     private BossManager bossManager;
     private ModelEngineHook modelEngineHook;
+    private boolean startupHandled = false;
 
     @Override
     public void onEnable() {
@@ -48,12 +52,17 @@ public final class MossBoss extends JavaPlugin {
         // 4) Boss yöneticisini oluştur
         this.bossManager = new BossManager(this, configManager, modelEngineHook);
 
-        // 5) Placeholder mob'ları spawn et — MythicMobs'un tam başlaması için 1 tick bekle.
-        //    Önce önceki oturumdan (crash sonrası temizlenememiş) orphan entity'leri sil.
-        Bukkit.getScheduler().runTask(this, () -> {
-            bossManager.cleanupOrphans();
-            bossManager.spawnAllPlaceholders();
-        });
+        // 5) Placeholder spawn'ını ServerLoadEvent'e bağla — sunucu ve tüm bağımlı
+        //    eklentiler (MythicMobs dahil) tamamen hazır olduğunda tetiklenir.
+        //    PlugMan gibi geç yükleme senaryoları için 40 tick'lik yedek görev de ekleniyor.
+        startupHandled = false;
+        getServer().getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onServerLoad(ServerLoadEvent event) {
+                doStartupInit();
+            }
+        }, this);
+        Bukkit.getScheduler().runTaskLater(this, this::doStartupInit, 40L);
 
         // 6) Olay dinleyicilerini kaydet
         getServer().getPluginManager().registerEvents(new BossInteractListener(bossManager), this);
@@ -71,8 +80,17 @@ public final class MossBoss extends JavaPlugin {
         getLogger().info("MossBoss etkinleştirildi. (yapımcı: wulnrydev)");
     }
 
+    private void doStartupInit() {
+        if (startupHandled) return;
+        startupHandled = true;
+        bossManager.cleanupOrphans();
+        bossManager.spawnAllPlaceholders();
+        bossManager.startWatchdog();
+    }
+
     @Override
     public void onDisable() {
+        startupHandled = false;
         if (bossManager != null) {
             bossManager.despawnAll();
         }

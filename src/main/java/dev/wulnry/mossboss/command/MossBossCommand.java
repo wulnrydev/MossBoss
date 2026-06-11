@@ -65,7 +65,10 @@ public final class MossBossCommand implements CommandExecutor, TabCompleter {
         plugin.getBossManager().despawnAll();
         plugin.getConfigManager().load();
         // onEnable'daki gibi 1 tick bekle — MythicMobs removal queue'su işlensin
-        Bukkit.getScheduler().runTask(plugin, plugin.getBossManager()::spawnAllPlaceholders);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            plugin.getBossManager().spawnAllPlaceholders();
+            plugin.getBossManager().startWatchdog();
+        });
 
         sender.sendMessage(ColorUtil.component(
                 replacePrefixPlaceholder(plugin.getConfigManager().getReloadSuccessMessage())));

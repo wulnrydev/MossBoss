@@ -45,7 +45,7 @@ public final class BossManager {
     private final Map<String, UUID> realBossUuids    = new ConcurrentHashMap<>();
     private final Map<UUID, String> entityToBossId   = new ConcurrentHashMap<>();
     private final Map<String, Long> respawnAt        = new ConcurrentHashMap<>();
-    private final Map<String, BukkitTask> respawnTasks  = new ConcurrentHashMap<>();
+    private BukkitTask watchdogTask;
 
     // Aktif boss'a ait bossbar, hasar tablosu ve otomatik despawn zamanlayıcısı
     private final Map<String, BossBar>              activeBossBars      = new ConcurrentHashMap<>();
@@ -90,8 +90,7 @@ public final class BossManager {
     }
 
     public void despawnAll() {
-        respawnTasks.values().forEach(BukkitTask::cancel);
-        respawnTasks.clear();
+        stopWatchdog();
         despawnTasks.values().forEach(BukkitTask::cancel);
         despawnTasks.clear();
 
@@ -254,17 +253,8 @@ public final class BossManager {
                 if (deadUuid.equals(ph)) placeholderUuids.remove(bossId);
             }
             if (!plugin.isEnabled()) return;
-            BossEntry placeholderEntry = config.getBosses().get(bossId);
-            if (placeholderEntry == null) return;
-            BukkitTask oldTask = respawnTasks.remove(bossId);
-            if (oldTask != null) oldTask.cancel();
-            BukkitTask respawnTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                respawnTasks.remove(bossId);
-                if (placeholderUuids.containsKey(bossId) || realBossUuids.containsKey(bossId)) return;
-                BossEntry fresh = config.getBosses().get(bossId);
-                if (fresh != null) spawnPlaceholder(fresh);
-            }, 1L);
-            respawnTasks.put(bossId, respawnTask);
+            if (config.getBosses().get(bossId) == null) return;
+            respawnAt.put(bossId, System.currentTimeMillis()); // watchdog hemen yakalar
             return;
         }
         if (!tracked.equals(deadUuid)) {
@@ -281,21 +271,46 @@ public final class BossManager {
         scheduleRespawn(bossId, entry.respawnDelaySeconds());
     }
 
-    /** Boss yok olduktan sonra placeholder'ı respawnDelay saniye sonra geri getirir. */
     private void scheduleRespawn(String bossId, int delaySeconds) {
         respawnAt.put(bossId, System.currentTimeMillis() + (long) delaySeconds * 1000L);
-        if (!plugin.isEnabled()) return;
+    }
 
-        BukkitTask old = respawnTasks.remove(bossId);
-        if (old != null) old.cancel();
+    public void startWatchdog() {
+        stopWatchdog();
+        watchdogTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickWatchdog, 20L, 20L);
+    }
 
-        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            respawnTasks.remove(bossId);
-            if (placeholderUuids.containsKey(bossId) || realBossUuids.containsKey(bossId)) return;
-            BossEntry fresh = config.getBosses().get(bossId);
-            if (fresh != null) spawnPlaceholder(fresh);
-        }, (long) delaySeconds * 20L);
-        respawnTasks.put(bossId, task);
+    public void stopWatchdog() {
+        if (watchdogTask != null) {
+            watchdogTask.cancel();
+            watchdogTask = null;
+        }
+    }
+
+    private void tickWatchdog() {
+        long now = System.currentTimeMillis();
+        for (BossEntry entry : config.getBosses().values()) {
+            String id = entry.id();
+
+            // Placeholder UUID var ama entity gerçekten dünyada mı?
+            UUID phUuid = placeholderUuids.get(id);
+            if (phUuid != null) {
+                Entity ph = Bukkit.getEntity(phUuid);
+                if (ph != null && ph.isValid()) continue;
+                // Entity dışarıdan kaldırılmış (event tetiklemeden) — stale UUID temizle
+                synchronized (this) {
+                    if (phUuid.equals(placeholderUuids.get(id))) {
+                        placeholderUuids.remove(id);
+                        entityToBossId.remove(phUuid);
+                    }
+                }
+            }
+
+            if (realBossUuids.containsKey(id)) continue;
+            Long rt = respawnAt.get(id);
+            if (rt != null && rt > now) continue;
+            spawnPlaceholder(entry);
+        }
     }
 
     /**
@@ -627,5 +642,11 @@ public final class BossManager {
             modelEngineHook.removeModel(entity);
         }
         MythicMobsHook.removeMob(uuid);
+        // MythicMobs'un remove() metodu entity'yi kaldırmazsa ya da sunucu kapanış
+        // sırasında chunk zaten kaydedildiyse persistent entity disk'e yazılabilir.
+        // Bunu önlemek için Bukkit entity'sini de açıkça kaldır.
+        if (entity != null && entity.isValid()) {
+            entity.remove();
+        }
     }
 }

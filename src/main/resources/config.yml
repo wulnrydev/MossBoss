@@ -12,15 +12,17 @@ prefix: "&#15FF08&lʙᴏxᴘᴠᴘ &8▸ "
 # ── Tılsım Eşyası Tanımı ────────────────────────────────────
 tilsim:
   # Bukkit Material adı (BÜYÜK HARF)
-  material: NETHER_STAR
+  material: LEATHER_HORSE_ARMOR
   # /mb give ile verildiğinde eşyada görünecek isim (&/&#RRGGBB renk kodları desteklenir)
-  display-name: "&#ffd500&lTılsım"
+  display-name: "&4şöᴠᴀʟʏᴇ ᴛıʟsıᴍı"
   # Eşya açıklaması — her satır ayrı bir liste elemanı (boş bırakılabilir)
   lore:
-    - "&7Bir boss'u uyandırmak için"
-    - "&7placeholder'a sağ tıklayın."
+    - "&7şöᴠᴀʟʏᴇ ʙᴏssᴜɴᴜ ᴄᴀɴʟᴀɴᴅıʀᴍᴀᴋ ɪçɪɴ"
+    - "&7şöᴠᴀʟʏᴇʏᴇ &fsᴀğ ᴛıᴋʟᴀʏıɴ."
+    - ""
+    - "&4/ᴡᴀʀᴘ"
   # ResourcePack custom model data değeri (-1 = devre dışı)
-  custom-model-data: 1001
+  custom-model-data: 10011
   # PDC anahtar değeri — eşyada bu değer olmalıdır
   pdc-value: "mossboss_tilsim"
 
@@ -56,29 +58,29 @@ messages:
 # ── Boss Girişleri ──────────────────────────────────────────
 # Her giriş benzersiz bir 'id' değerine sahip olmalıdır.
 bosses:
-  - id: "ancient_golem"
+  - id: "Knight"
     # Oyunculara gösterilecek ad (broadcast'lerde %boss_name%). Boş/eksikse 'id' kullanılır.
-    display-name: "&#ffd500Ancient Golem"
+    display-name: "&#ffd500Tılsımlı Şövalye Boss"
     # Boss'un bulunacağı dünya adı
     world: "world"
     # Koordinatlar
-    x: 0.5
-    y: 64.0
-    z: 0.5
-    yaw: 0.0
+    x: 671.003
+    y: -40.0
+    z: 830.551
+    yaw: 180.0
     # Haritada sabit duran, hareketsiz placeholder MythicMob tipi
-    placeholder-mythic-id: "AncientGolemPlaceholder"
+    placeholder-mythic-id: "Knight"
     # Tılsım ile tetiklenince spawn olan gerçek boss tipi
-    real-boss-mythic-id: "AncientGolem"
+    real-boss-mythic-id: "Knight"
     # Boss öldükten sonra placeholder'ın geri gelmesi için bekleme süresi (saniye)
-    respawn-delay-seconds: 3600
+    respawn-delay-seconds: 1800
     # Bu boss için özel duyuru mesajı (boş bırakılırsa global mesaj kullanılır)
     spawn-broadcast: ""
     # ModelEngine model adı (boş = ModelEngine kullanılmaz)
     model-id: ""
     # Bossbar — boss doğduğunda tüm oyunculara gösterilir; boş bırakılırsa gösterilmez
     # Yer tutucular: {health}, {max_health}
-    bossbar-title: "&#ffd500Ancient Golem &8| &c{health} &8/ &7{max_health} ❤"
+    bossbar-title: "&#ffd500Tılsımlı Şövalye &8| &c{health} &8/ &7{max_health} ❤"
     # Renk: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
     bossbar-color: "YELLOW"
     # Stil: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
@@ -89,36 +91,6 @@ bosses:
     # Ödüller — en çok hasar veren oyunculara sırasıyla verilir
     # {player} yer tutucusu oyuncu adıyla değiştirilir
     # name: kill duyurusunda gösterilecek ödül adı
-    rewards:
-      - rank: 1
-        name: "Kit Kasası Anahtarı"
-        commands:
-          - "crates key give {player} kit 1"
-      - rank: 2
-        name: "Coin Kasası Anahtarı"
-        commands:
-          - "crates key give {player} coin 1"
-      - rank: 3
-        name: "Event Kasası Anahtarı"
-        commands:
-          - "crates key give {player} event 1"
-
-  - id: "void_titan"
-    display-name: "&#9b59b6Void Titan"
-    world: "world"
-    x: 100.5
-    y: 64.0
-    z: -200.5
-    yaw: 90.0
-    placeholder-mythic-id: "VoidTitanPlaceholder"
-    real-boss-mythic-id: "VoidTitan"
-    respawn-delay-seconds: 7200
-    spawn-broadcast: "%prefix%&#00D420ᴠᴏɪᴅ ᴛɪᴛᴀɴ &7ᴜʏᴀɴᴅɪ! &#ffd500%player% &7ᴜʏᴀɴᴅɪʀᴅɪ!"
-    model-id: ""
-    bossbar-title: "&#9b59b6Void Titan &8| &c{health} &8/ &7{max_health} ❤"
-    bossbar-color: "PURPLE"
-    bossbar-style: "PROGRESS"
-    despawn-after-seconds: 900
     rewards:
       - rank: 1
         name: "Kit Kasası Anahtarı"
